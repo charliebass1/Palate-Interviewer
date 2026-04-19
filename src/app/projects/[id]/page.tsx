@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { MaterialsPanel } from "./materials-panel";
 import { GuidePanel } from "./guide-panel";
+import { InterviewsPanel } from "./interviews-panel";
+import { SummariesPanel } from "./summaries-panel";
+import { ThemesPanel } from "./themes-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +20,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     .single();
   if (!project) return notFound();
 
-  const [{ data: materials }, { data: guides }, { data: interviews }] = await Promise.all([
+  const [
+    { data: materials },
+    { data: guides },
+    { data: interviews },
+    { data: summaries },
+    { data: themes },
+  ] = await Promise.all([
     sb.from("materials")
       .select("id, filename, parse_status, created_at")
       .eq("project_id", id)
@@ -27,12 +36,20 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       .eq("project_id", id)
       .order("created_at", { ascending: false }),
     sb.from("interviews")
-      .select("id, expert_name, expert_role, status, scheduled_at")
+      .select("id, expert_name, expert_role, expert_segment, status, scheduled_at, duration_sec, vapi_call_id")
       .eq("project_id", id)
-      .order("scheduled_at", { ascending: false }),
+      .order("scheduled_at", { ascending: false, nullsFirst: false }),
+    sb.from("summaries")
+      .select("id, interview_id, insights, quotes, sentiment, created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false }),
+    sb.from("themes")
+      .select("id, title, description, supporting_quotes, confidence, created_at")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false }),
   ]);
 
-  const latestGuide = guides?.[0];
+  const latestGuide = guides?.[0] ?? null;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -42,26 +59,27 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <MaterialsPanel projectId={project.id} initial={materials ?? []} />
-        <GuidePanel projectId={project.id} initialGuide={latestGuide ?? null} />
+        <GuidePanel projectId={project.id} initialGuide={latestGuide} />
       </div>
 
-      <section className="mt-12">
-        <h2 className="text-sm font-medium text-neutral-400">Interviews</h2>
-        <ul className="mt-3 divide-y divide-neutral-800 rounded-md border border-neutral-800">
-          {(interviews ?? []).map((i) => (
-            <li key={i.id} className="px-4 py-3 flex items-center justify-between">
-              <div>
-                <div className="font-medium">{i.expert_name}</div>
-                <div className="text-xs text-neutral-500">{i.expert_role}</div>
-              </div>
-              <span className="text-xs text-neutral-500">{i.status}</span>
-            </li>
-          ))}
-          {(!interviews || interviews.length === 0) && (
-            <li className="px-4 py-6 text-sm text-neutral-500">No interviews scheduled yet.</li>
-          )}
-        </ul>
-      </section>
+      <InterviewsPanel
+        projectId={project.id}
+        guideId={latestGuide?.id ?? null}
+        initial={interviews ?? []}
+      />
+
+      <SummariesPanel
+        summaries={(summaries as Parameters<typeof SummariesPanel>[0]["summaries"]) ?? []}
+        interviews={(interviews ?? []).map((i) => ({
+          id: i.id, expert_name: i.expert_name, expert_role: i.expert_role,
+        }))}
+      />
+
+      <ThemesPanel
+        projectId={project.id}
+        initial={(themes as Parameters<typeof ThemesPanel>[0]["initial"]) ?? []}
+        canSynthesize={(summaries?.length ?? 0) >= 1}
+      />
     </main>
   );
 }

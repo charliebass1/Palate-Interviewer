@@ -1,5 +1,7 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+
+type CookieChunk = { name: string; value: string; options?: CookieOptions };
 
 // Refreshes Supabase auth cookies on every request so server components can
 // rely on a live session. Called from src/middleware.ts.
@@ -14,7 +16,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(list) {
+        setAll(list: CookieChunk[]) {
           for (const { name, value } of list) request.cookies.set(name, value);
           response = NextResponse.next({ request });
           for (const { name, value, options } of list) {

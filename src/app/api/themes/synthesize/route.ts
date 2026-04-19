@@ -64,12 +64,13 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "themes JSON parse failed", raw: raw.slice(0, 4000) }, { status: 502 });
   }
-  const themes = Array.isArray(out.themes) ? out.themes : [];
+  type ThemeRow = {
+    title?: string; description?: string; supporting_quotes?: unknown; confidence?: number;
+  };
+  const themes: ThemeRow[] = Array.isArray(out.themes) ? (out.themes as ThemeRow[]) : [];
 
   await sb.from("themes").delete().eq("project_id", parsed.data.project_id);
-  const rows = themes.map((t: {
-    title?: string; description?: string; supporting_quotes?: unknown; confidence?: number;
-  }) => ({
+  const rows = themes.map((t) => ({
     project_id: parsed.data.project_id,
     title: t.title ?? "Untitled theme",
     description: t.description ?? null,

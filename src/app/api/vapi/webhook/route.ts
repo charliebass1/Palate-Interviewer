@@ -98,20 +98,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+type VapiCall = {
+  id?: string;
+  status?: string;
+  startedAt?: string;
+  transcript?: string;
+  messages?: unknown;
+};
+
 type VapiEvent = {
   type?: string;
   transcript?: string;
-  call?: {
-    id?: string;
-    status?: string;
-    startedAt?: string;
-    transcript?: string;
-    messages?: unknown;
-  };
+  call?: VapiCall;
   message?: {
     type?: string;
     transcript?: string;
     messages?: unknown;
-    call?: { id?: string; status?: string; startedAt?: string };
+    call?: VapiCall;
   };
 };

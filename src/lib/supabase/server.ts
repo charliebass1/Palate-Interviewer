@@ -1,7 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../env";
+
+type CookieChunk = { name: string; value: string; options?: CookieOptions };
 
 // Per-request server client that forwards the user's auth cookies (RLS on).
 export async function supabaseServer() {
@@ -12,7 +14,7 @@ export async function supabaseServer() {
       getAll() {
         return store.getAll();
       },
-      setAll(list) {
+      setAll(list: CookieChunk[]) {
         for (const { name, value, options } of list) {
           store.set({ name, value, ...options });
         }

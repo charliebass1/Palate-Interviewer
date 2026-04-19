@@ -18,6 +18,12 @@ const schema = z.object({
   LLAMA_CLOUD_API_KEY: z.string().optional(),
 
   APP_URL: z.string().url().default("http://localhost:3000"),
+
+  // Dev-only tools (paste-in transcript, etc). Leave off in production.
+  NEXT_PUBLIC_ENABLE_DEV_TOOLS: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false"),
 });
 
 type Env = z.infer<typeof schema>;

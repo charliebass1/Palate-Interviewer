@@ -6,6 +6,7 @@ import { GuidePanel } from "./guide-panel";
 import { InterviewsPanel } from "./interviews-panel";
 import { SummariesPanel } from "./summaries-panel";
 import { ThemesPanel } from "./themes-panel";
+import { DevTranscriptPanel } from "./dev-transcript-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         guideId={latestGuide?.id ?? null}
         initial={interviews ?? []}
       />
+
+      {process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS === "true" && (
+        <DevTranscriptPanel projectId={project.id} guideId={latestGuide?.id ?? null} />
+      )}
 
       <SummariesPanel
         summaries={(summaries as Parameters<typeof SummariesPanel>[0]["summaries"]) ?? []}

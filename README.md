@@ -185,6 +185,7 @@ restart `npm run dev`. From here on, scheduling an interview with
 | `ELEVENLABS_API_KEY`            | no       | Only if proxying ElevenLabs directly   |
 | `LLAMA_CLOUD_API_KEY`           | no       | Reserved for future PDF parsing upgrade |
 | `APP_URL`                       | yes      | Used in OAuth + Vapi webhook URL       |
+| `NEXT_PUBLIC_ENABLE_DEV_TOOLS`  | no       | `true` exposes paste-in transcript UI  |
 
 `*` = required for the live-call path. The upload + guide generation
 flow works without any Vapi credentials.
@@ -209,6 +210,7 @@ cookies; the Vapi webhook uses HMAC-SHA256 of the raw body.
 | POST   | `/api/vapi/webhook`           | Vapi lifecycle webhook (HMAC-verified)           |
 | POST   | `/api/analysis/summarize`     | Claude post-call analysis from a transcript      |
 | POST   | `/api/themes/synthesize`      | Claude cross-interview theme synthesis           |
+| POST   | `/api/dev/test-transcript`    | Dev-only: paste a transcript, run analyzer (gated by `NEXT_PUBLIC_ENABLE_DEV_TOOLS`) |
 | GET    | `/auth/callback`              | Magic-link redirect target                       |
 | POST   | `/auth/sign-out`              | Sign out                                         |
 
@@ -216,10 +218,6 @@ cookies; the Vapi webhook uses HMAC-SHA256 of the raw body.
 
 ## Known gaps before "demo-ready"
 
-- **No paste-in transcript path.** To exercise the summary/themes UI
-  end-to-end without a real Vapi call, you'd need to either run a
-  Vapi web/phone call or insert rows directly via SQL. A small
-  `/api/dev/test-transcript` endpoint would solve this in ~30 lines.
 - **No in-browser web call.** The interview scheduler only supports
   outbound phone via E.164. Vapi also supports browser-based web calls
   — wiring those into a "Start call now" button on the project page

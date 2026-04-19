@@ -2,18 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import pdfParse from "pdf-parse";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
-import { chunkText } from "@/lib/chunk";
-import { embed } from "@/lib/embeddings";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const Body = z.object({ material_id: z.string().uuid() });
 
-// Downloads the uploaded file, extracts text (PDF for now), chunks, embeds,
-// and writes material_chunks rows. Uses the admin client for the downloads
-// and writes because we've already verified ownership through the user-scoped
-// fetch of the material row.
+// Downloads the uploaded file, extracts text, and writes it back onto the
+// materials row. RAG chunking + embeddings will be added in a follow-up
+// migration; for now the guide generator reads `extracted_text` directly.
 export async function POST(req: NextRequest) {
   const sb = await supabaseServer();
   const admin = supabaseAdmin();
@@ -46,38 +43,16 @@ export async function POST(req: NextRequest) {
     if (dlErr || !file) throw new Error(dlErr?.message ?? "download failed");
 
     const buf = Buffer.from(await file.arrayBuffer());
-    let text = "";
-    if (material.mime_type === "application/pdf" || material.filename.toLowerCase().endsWith(".pdf")) {
-      const parsed = await pdfParse(buf);
-      text = parsed.text;
-    } else {
-      text = buf.toString("utf-8");
-    }
-
-    const chunks = chunkText(text);
-    const vectors = chunks.length ? await embed(chunks.map((c) => c.content)) : [];
-
-    await admin.from("material_chunks").delete().eq("material_id", material.id);
-
-    if (chunks.length) {
-      const rows = chunks.map((c, i) => ({
-        material_id: material.id,
-        project_id: material.project_id,
-        chunk_index: c.index,
-        content: c.content,
-        token_count: Math.ceil(c.content.length / 4),
-        embedding: vectors[i],
-      }));
-      const { error: insErr } = await admin.from("material_chunks").insert(rows);
-      if (insErr) throw insErr;
-    }
+    const isPdf = material.mime_type === "application/pdf"
+      || material.filename.toLowerCase().endsWith(".pdf");
+    const text = isPdf ? (await pdfParse(buf)).text : buf.toString("utf-8");
 
     await admin.from("materials").update({
       parse_status: "parsed",
       extracted_text: text.slice(0, 200_000),
     }).eq("id", material.id);
 
-    return NextResponse.json({ ok: true, chunk_count: chunks.length });
+    return NextResponse.json({ ok: true, char_count: text.length });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await admin.from("materials").update({

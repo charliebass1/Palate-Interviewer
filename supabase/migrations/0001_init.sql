@@ -1,9 +1,12 @@
 -- Palate Interviewer — initial schema
--- Tables: projects, materials, material_chunks (pgvector),
---         interview_guides, interviews, transcripts, summaries, themes
+-- Tables: projects, materials, interview_guides, interviews,
+--         transcripts, summaries, themes
+--
+-- Note: vector embeddings + a `material_chunks` table are deliberately not
+-- created here. They will be added in a follow-up RAG migration once the
+-- guide generator switches from "stuff all extracted_text" to retrieval.
 
 create extension if not exists "pgcrypto";
-create extension if not exists "vector";
 
 -- -------------------------------------------------------------------
 -- Projects: a research engagement (5–20 interviews on the same topic)
@@ -40,27 +43,6 @@ create table if not exists public.materials (
 );
 
 create index if not exists materials_project_idx on public.materials(project_id);
-
--- -------------------------------------------------------------------
--- Material chunks: embedded for RAG during guide generation
--- 1536 dims matches Anthropic's recommended small embedding models
--- (swap to 3072 if using a larger embedding model).
--- -------------------------------------------------------------------
-create table if not exists public.material_chunks (
-  id            uuid primary key default gen_random_uuid(),
-  material_id   uuid not null references public.materials(id) on delete cascade,
-  project_id    uuid not null references public.projects(id) on delete cascade,
-  chunk_index   int not null,
-  content       text not null,
-  token_count   int,
-  embedding     vector(1536),
-  created_at    timestamptz not null default now()
-);
-
-create index if not exists material_chunks_project_idx on public.material_chunks(project_id);
-create index if not exists material_chunks_material_idx on public.material_chunks(material_id);
-create index if not exists material_chunks_embedding_idx
-  on public.material_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
 
 -- -------------------------------------------------------------------
 -- Interview guides: Claude-generated, per project
@@ -157,7 +139,6 @@ create index if not exists themes_project_idx on public.themes(project_id);
 -- -------------------------------------------------------------------
 alter table public.projects           enable row level security;
 alter table public.materials          enable row level security;
-alter table public.material_chunks    enable row level security;
 alter table public.interview_guides   enable row level security;
 alter table public.interviews         enable row level security;
 alter table public.transcripts        enable row level security;
@@ -174,15 +155,6 @@ create policy "materials owner write" on public.materials for all using (
   exists (select 1 from public.projects p where p.id = materials.project_id and p.owner_id = auth.uid())
 ) with check (
   exists (select 1 from public.projects p where p.id = materials.project_id and p.owner_id = auth.uid())
-);
-
-create policy "chunks owner read"     on public.material_chunks for select using (
-  exists (select 1 from public.projects p where p.id = material_chunks.project_id and p.owner_id = auth.uid())
-);
-create policy "chunks owner write"    on public.material_chunks for all using (
-  exists (select 1 from public.projects p where p.id = material_chunks.project_id and p.owner_id = auth.uid())
-) with check (
-  exists (select 1 from public.projects p where p.id = material_chunks.project_id and p.owner_id = auth.uid())
 );
 
 create policy "guides owner read"     on public.interview_guides for select using (
@@ -241,31 +213,3 @@ create policy "themes owner write"    on public.themes for all using (
 ) with check (
   exists (select 1 from public.projects p where p.id = themes.project_id and p.owner_id = auth.uid())
 );
-
--- -------------------------------------------------------------------
--- Vector search RPC: nearest chunks for a project given a query embedding
--- -------------------------------------------------------------------
-create or replace function public.match_chunks(
-  query_embedding vector(1536),
-  target_project_id uuid,
-  match_count int default 12
-)
-returns table (
-  id uuid,
-  material_id uuid,
-  content text,
-  similarity float
-)
-language sql stable
-as $$
-  select
-    mc.id,
-    mc.material_id,
-    mc.content,
-    1 - (mc.embedding <=> query_embedding) as similarity
-  from public.material_chunks mc
-  where mc.project_id = target_project_id
-    and mc.embedding is not null
-  order by mc.embedding <=> query_embedding
-  limit match_count;
-$$;

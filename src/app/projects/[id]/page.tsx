@@ -6,6 +6,7 @@ import { GuidePanel } from "./guide-panel";
 import { InterviewsPanel } from "./interviews-panel";
 import { SummariesPanel } from "./summaries-panel";
 import { ThemesPanel } from "./themes-panel";
+import { VoicePanel } from "./voice-panel";
 import { DevTranscriptPanel } from "./dev-transcript-panel";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const { data: project } = await sb
     .from("projects")
-    .select("id, name, topic, client, status, created_at")
+    .select("id, name, topic, client, status, voice_id, voice_name, created_at")
     .eq("id", id)
     .single();
   if (!project) return notFound();
@@ -62,6 +63,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <MaterialsPanel projectId={project.id} initial={materials ?? []} />
         <GuidePanel projectId={project.id} initialGuide={latestGuide} />
       </div>
+
+      <VoicePanel
+        projectId={project.id}
+        initialVoiceId={project.voice_id ?? null}
+        initialVoiceName={project.voice_name ?? null}
+      />
 
       <InterviewsPanel
         projectId={project.id}

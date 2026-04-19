@@ -15,6 +15,9 @@ const schema = z.object({
 
   DEEPGRAM_API_KEY: z.string().optional(),
   ELEVENLABS_API_KEY: z.string().optional(),
+  // Opt-in to use your own ElevenLabs account from Vapi (otherwise Vapi
+  // proxies ElevenLabs with its own credential). Pass through to assistant.
+  ELEVENLABS_VIA_VAPI_BYO: z.enum(["true", "false"]).optional().default("false"),
   LLAMA_CLOUD_API_KEY: z.string().optional(),
 
   APP_URL: z.string().url().default("http://localhost:3000"),

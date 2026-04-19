@@ -30,22 +30,29 @@ export async function POST(req: NextRequest) {
   }
 
   let guideJson: object | null = null;
+  let projectVoiceId: string | undefined;
   if (parsed.data.project_id) {
-    const { data: guide } = await sb
-      .from("interview_guides")
-      .select("guide_json")
-      .eq("project_id", parsed.data.project_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    const [{ data: guide }, { data: project }] = await Promise.all([
+      sb.from("interview_guides")
+        .select("guide_json")
+        .eq("project_id", parsed.data.project_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+      sb.from("projects")
+        .select("voice_id")
+        .eq("id", parsed.data.project_id)
+        .single(),
+    ]);
     guideJson = (guide?.guide_json as object | undefined) ?? null;
+    projectVoiceId = project?.voice_id ?? undefined;
   }
 
   const cfg = buildAssistantConfig({
     name: parsed.data.name,
     guideJson,
     model: env().ANTHROPIC_MODEL,
-    elevenLabsVoiceId: parsed.data.elevenlabs_voice_id,
+    elevenLabsVoiceId: parsed.data.elevenlabs_voice_id ?? projectVoiceId,
     appUrl: env().APP_URL,
     webhookSecret: env().VAPI_WEBHOOK_SECRET,
   });

@@ -182,7 +182,7 @@ restart `npm run dev`. From here on, scheduling an interview with
 | `VAPI_ASSISTANT_ID`             | yes*     | Set after first POST /api/vapi/assistant |
 | `VAPI_PHONE_NUMBER_ID`          | yes*     | From Vapi dashboard                    |
 | `DEEPGRAM_API_KEY`              | no       | Only if proxying Deepgram directly     |
-| `ELEVENLABS_API_KEY`            | no       | Only if proxying ElevenLabs directly   |
+| `ELEVENLABS_API_KEY`            | no       | Enables the per-project Voice picker   |
 | `LLAMA_CLOUD_API_KEY`           | no       | Reserved for future PDF parsing upgrade |
 | `APP_URL`                       | yes      | Used in OAuth + Vapi webhook URL       |
 | `NEXT_PUBLIC_ENABLE_DEV_TOOLS`  | no       | `true` exposes paste-in transcript UI  |
@@ -201,6 +201,8 @@ cookies; the Vapi webhook uses HMAC-SHA256 of the raw body.
 | ------ | ----------------------------- | ------------------------------------------------ |
 | GET    | `/api/projects`               | List projects for the signed-in user             |
 | POST   | `/api/projects`               | Create a project                                 |
+| PATCH  | `/api/projects/[id]`          | Update project fields (voice_id, name, topic)    |
+| GET    | `/api/voices`                 | List ElevenLabs voices for the configured key    |
 | POST   | `/api/materials/upload-url`   | Insert material row + return signed upload URL   |
 | POST   | `/api/materials/parse`        | Extract text from uploaded file                  |
 | POST   | `/api/guides/generate`        | Claude generates a discussion guide              |

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { NewProjectForm } from "./new-project-form";
 
@@ -7,17 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function ProjectsPage() {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
-
-  if (!user) {
-    return (
-      <main className="mx-auto max-w-2xl px-6 py-20">
-        <h1 className="text-2xl font-semibold">Sign in required</h1>
-        <p className="mt-3 text-neutral-400">
-          Authentication is wired through Supabase. Add a sign-in flow before using the project dashboard.
-        </p>
-      </main>
-    );
-  }
+  if (!user) redirect("/login?next=/projects");
 
   const { data: projects } = await sb
     .from("projects")
@@ -31,6 +22,14 @@ export default async function ProjectsPage() {
           <p className="text-xs uppercase tracking-widest text-neutral-500">Palate</p>
           <h1 className="mt-2 text-3xl font-semibold">Projects</h1>
         </div>
+        <form action="/auth/sign-out" method="post">
+          <button
+            type="submit"
+            className="text-xs text-neutral-500 hover:text-neutral-300"
+          >
+            Sign out ({user.email})
+          </button>
+        </form>
       </div>
 
       <section className="mt-10">

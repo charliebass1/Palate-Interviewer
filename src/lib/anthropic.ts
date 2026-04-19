@@ -13,10 +13,11 @@ export function defaultModel(): string {
   return env().ANTHROPIC_MODEL;
 }
 
-// Standard request options used across the app.
-// - Adaptive thinking (summarized so UI can show progress)
-// - High effort by default; callers can override for subagents or cheap calls.
-export const BASE_REQUEST = {
-  thinking: { type: "adaptive" as const, display: "summarized" as const },
-  output_config: { effort: "high" as const },
-};
+// Request options shared across the app.
+//
+// Default model is Haiku 4.5 — fast and cheap, no effort/adaptive-thinking.
+// If the caller upgrades ANTHROPIC_MODEL to sonnet-4-6 / opus-4-6 / opus-4-7,
+// uncomment the enrichments below (they will error on Haiku 4.5):
+//   thinking: { type: "adaptive", display: "summarized" },
+//   output_config: { effort: "high" },
+export const BASE_REQUEST = {} as const;

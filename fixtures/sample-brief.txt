@@ -1,0 +1,61 @@
+RESEARCH BRIEF — LTO Strategy in Regional Burger Chains (2026)
+
+CLIENT
+Mid-tier protein supplier evaluating how to position a new premium chicken
+patty SKU into the regional (50–300 unit) burger chain segment. The client
+currently over-indexes in fine dining and independent operators; they have
+limited visibility into how regional chains actually make LTO (limited-time
+offer) decisions.
+
+OBJECTIVES
+1. Understand how regional burger chains decide what becomes an LTO vs. a
+   permanent menu addition in 2026.
+2. Map the real decision-makers — culinary R&D, operations, procurement,
+   franchisee councils — and their veto points.
+3. Identify which levers a supplier can actually pull to win a slot
+   (sample-first? 12-month price lock? competitive intel?) vs. the rituals
+   that feel productive but don't move the needle.
+4. Surface the back-of-house constraints (labor, equipment, prep steps) that
+   silently kill otherwise good LTO concepts before they reach the menu.
+
+TOPIC CONTEXT
+The broader category has been under sustained labor pressure since 2023.
+Operators have publicly stated they are designing new items around a
+"two-step prep max" constraint. Several chains have consolidated distributors
+in the last 18 months, which has shortened the list of suppliers who can
+realistically win a national rollout.
+
+At the same time, premium chicken as a category has grown ~14% YoY in
+regional burger QSR while beef LTO mix has plateaued. The client's thesis
+is that there is white space for a premium chicken patty positioned as a
+beef-LTO ALTERNATIVE rather than a chicken-category entrant — but they want
+to test that thesis against operator reality before committing tooling.
+
+TARGET EXPERTS (5–20 interviews across these profiles)
+- Directors/VPs of culinary at regional burger chains (50–300 units)
+- Menu strategy leads at chain-adjacent consultancies
+- Regional distributor category managers (Sysco, US Foods, PFG regional arms)
+- Franchisee council leadership at 3+ chains
+- Protein brokers who sell into this segment
+
+KEY QUESTIONS TO ANSWER
+- What is the real decision loop for a 4–8 week LTO in a chain this size?
+  How compressed is the timeline from concept to rollout?
+- What kills an LTO before it launches? Rank order: labor, equipment,
+  pricing, supply continuity, marketing fit, franchisee resistance.
+- What does a winning supplier pitch look like in 2026? Is the "deck + rep
+  visit" model still functional, or has it been displaced?
+- How much do operators actually weight competitive intelligence ("chain X is
+  running your product") vs. their own sampling?
+- What is the right price-lock horizon to offer — 6, 12, 18 months? Where
+  does the operator's own distributor contract renegotiation cycle fall?
+
+OUT OF SCOPE
+- Fast-casual and fine-dining segments (covered in prior engagement).
+- International markets.
+- Plant-based protein alternatives.
+
+DELIVERABLE
+A decision-grade set of 4–8 themes with supporting verbatim quotes, a
+ranked list of objections the supplier will face, and a recommendation on
+the sample-first vs. deck-first go-to-market motion.

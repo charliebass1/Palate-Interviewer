@@ -152,6 +152,37 @@ restart `npm run dev`. From here on, scheduling an interview with
 
 ## End-to-end smoke test
 
+### Automated (zero Vapi cost)
+
+Once Supabase + Anthropic keys are in `.env.local` and you've signed in
+once at `/login` (so an `auth.users` row exists):
+
+```bash
+npm run smoke
+```
+
+This script (`scripts/smoke.ts`) exercises the full pipeline end-to-end
+without touching Vapi:
+
+1. Creates a fresh project owned by your user
+2. Seeds a sample research brief from `fixtures/sample-brief.txt` with
+   `parse_status='parsed'` (skips storage upload)
+3. Calls **Claude** to generate a discussion guide
+4. Inserts 3 completed interviews + transcripts from
+   `fixtures/transcripts.ts`
+5. Calls **Claude** per interview to produce the summary
+6. Calls **Claude** to synthesize themes across all three
+
+Each step prints ✓ / ✗ with timing, so a failure pinpoints the exact
+stage. Total cost on `claude-haiku-4-5`: ~$0.03. Runs comfortably on
+the Anthropic new-account trial credit.
+
+If you have multiple users in `auth.users`, set
+`SEED_USER_ID=<uuid>` to pick one. When the script finishes it prints
+the URL to open in the dashboard.
+
+### Manual (exercises the live Vapi call path)
+
 1. Sign in.
 2. **Create project** — give it a name + topic.
 3. **Upload material** — at least one PDF or TXT.
@@ -248,10 +279,19 @@ src/
     env.ts                   # zod-validated env loader
     supabase/                # server, browser, middleware clients
     vapi.ts                  # Vapi REST wrapper + assistant config builder
+    generate-guide.ts        # Claude guide generator (shared by route + smoke)
+    analyze.ts               # Claude post-call analyzer (shared by route + smoke)
+    synthesize.ts            # Claude theme synthesizer (shared by route + smoke)
     prompts/                 # guide, interviewer, analyzer, theme prompts
   middleware.ts              # Supabase session refresh
+fixtures/
+  sample-brief.txt           # seed research brief for `npm run smoke`
+  transcripts.ts             # 3 canned interviews for `npm run smoke`
+scripts/
+  smoke.ts                   # end-to-end verification — see "Automated smoke test"
 supabase/
   migrations/
     0001_init.sql            # core schema + RLS
     0002_storage.sql         # materials bucket + bucket policies
+    0003_project_voice.sql   # per-project ElevenLabs voice selection
 ```

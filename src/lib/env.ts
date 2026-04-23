@@ -27,6 +27,10 @@ const schema = z.object({
     .enum(["true", "false"])
     .optional()
     .default("false"),
+
+  // Hide /debug once initial configuration is stable. Defaults to showing
+  // because the page is meant to be hit BEFORE the first login exists.
+  DEBUG_DISABLED: z.enum(["true", "false"]).optional().default("false"),
 });
 
 type Env = z.infer<typeof schema>;

@@ -97,7 +97,7 @@ export function InterviewsPanel({
         </select>
         <input
           className="rounded bg-neutral-900 px-3 py-2 text-sm outline-none focus:bg-neutral-800 disabled:opacity-50"
-          placeholder="+14155551234 (E.164, required to dial)"
+          placeholder="+14155551234 — include country code"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           disabled={!dialNow}

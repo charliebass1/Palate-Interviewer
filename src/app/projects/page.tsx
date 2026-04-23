@@ -52,7 +52,11 @@ export default async function ProjectsPage() {
             </li>
           ))}
           {(!projects || projects.length === 0) && (
-            <li className="px-4 py-6 text-sm text-neutral-500">No projects yet.</li>
+            <li className="px-4 py-6 text-sm text-neutral-500">
+              No projects yet. Create one above to start. Each project holds
+              your research materials, the Claude-generated interview guide,
+              the interviews you run, and the themes synthesized across them.
+            </li>
           )}
         </ul>
       </section>

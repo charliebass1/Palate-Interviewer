@@ -21,7 +21,15 @@ type GuideShape = {
   }[];
 };
 
-export function GuidePanel({ projectId, initialGuide }: { projectId: string; initialGuide: Guide | null }) {
+export function GuidePanel({
+  projectId,
+  initialGuide,
+  hasParsedMaterial,
+}: {
+  projectId: string;
+  initialGuide: Guide | null;
+  hasParsedMaterial: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +62,17 @@ export function GuidePanel({ projectId, initialGuide }: { projectId: string; ini
         <button
           type="button"
           onClick={generate}
-          disabled={busy}
+          disabled={busy || !hasParsedMaterial}
           className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
         >
           {busy ? "Generating..." : initialGuide ? "Regenerate" : "Generate"}
         </button>
       </div>
+      {!hasParsedMaterial && (
+        <p className="mt-2 text-xs text-neutral-500">
+          Upload and parse a material first — the generator reads its extracted text.
+        </p>
+      )}
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
       <div className="mt-3 rounded-md border border-neutral-800 p-4 text-sm">

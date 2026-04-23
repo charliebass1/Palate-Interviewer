@@ -114,6 +114,26 @@ npm run dev
 # open http://localhost:3000
 ```
 
+### 5a. Pre-flight check (`/debug`)
+
+Before signing in, visit **`http://localhost:3000/debug`**. You'll see
+a one-screen status report:
+
+- Which required env vars are present vs missing
+- Whether Supabase is reachable and all 7 core tables + the `materials`
+  bucket exist
+- Whether your Anthropic key authenticates
+- Whether your Vapi / ElevenLabs keys work (if set)
+
+Rows render green / amber / red with a remediation hint next to each
+failure. No secret values are ever rendered — only presence + reachability.
+
+The page is intentionally public so you can hit it before any user
+account exists. Once configuration is stable, set
+`DEBUG_DISABLED=true` in your env to hide it.
+
+### 5b. Sign in
+
 Sign in with your email, click the magic link, and you'll land on
 `/projects`.
 
@@ -217,6 +237,7 @@ the URL to open in the dashboard.
 | `LLAMA_CLOUD_API_KEY`           | no       | Reserved for future PDF parsing upgrade |
 | `APP_URL`                       | yes      | Used in OAuth + Vapi webhook URL       |
 | `NEXT_PUBLIC_ENABLE_DEV_TOOLS`  | no       | `true` exposes paste-in transcript UI  |
+| `DEBUG_DISABLED`                | no       | `true` hides the `/debug` pre-flight page |
 
 `*` = required for the live-call path. The upload + guide generation
 flow works without any Vapi credentials.

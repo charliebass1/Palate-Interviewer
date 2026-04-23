@@ -8,6 +8,7 @@ import { SummariesPanel } from "./summaries-panel";
 import { ThemesPanel } from "./themes-panel";
 import { VoicePanel } from "./voice-panel";
 import { DevTranscriptPanel } from "./dev-transcript-panel";
+import { WorkflowChecklist } from "./workflow-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   ]);
 
   const latestGuide = guides?.[0] ?? null;
+  const hasParsedMaterial = (materials ?? []).some((m) => m.parse_status === "parsed");
+  const hasCompletedInterview = (interviews ?? []).some((i) => i.status === "completed");
+  const hasThemes = (themes ?? []).length > 0;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -59,9 +63,20 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <h1 className="mt-3 text-3xl font-semibold">{project.name}</h1>
       {project.topic && <p className="mt-1 text-neutral-400">{project.topic}</p>}
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+      <WorkflowChecklist
+        hasParsedMaterial={hasParsedMaterial}
+        hasGuide={Boolean(latestGuide)}
+        hasCompletedInterview={hasCompletedInterview}
+        hasThemes={hasThemes}
+      />
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <MaterialsPanel projectId={project.id} initial={materials ?? []} />
-        <GuidePanel projectId={project.id} initialGuide={latestGuide} />
+        <GuidePanel
+          projectId={project.id}
+          initialGuide={latestGuide}
+          hasParsedMaterial={hasParsedMaterial}
+        />
       </div>
 
       <VoicePanel

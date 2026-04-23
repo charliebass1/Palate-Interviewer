@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const { data: interview } = await admin
     .from("interviews")
-    .select("id, project_id")
+    .select("id, project_id, status")
     .eq("vapi_call_id", callId)
     .single();
   if (!interview) return NextResponse.json({ ok: true, no_match: true });
@@ -50,9 +50,13 @@ export async function POST(req: NextRequest) {
     case "call-started":
     case "status-update": {
       if (call?.status === "in-progress" || event !== "status-update") {
+        // Idempotent: only set started_at if still null so retries don't
+        // shift the start time, and skip the status update once we've
+        // already moved past in_progress.
         await admin.from("interviews")
           .update({ status: "in_progress", started_at: new Date().toISOString() })
-          .eq("id", interview.id);
+          .eq("id", interview.id)
+          .is("started_at", null);
       }
       break;
     }
@@ -60,33 +64,63 @@ export async function POST(req: NextRequest) {
     case "call.ended":
     case "call-ended":
     case "end-of-call-report": {
+      // Dedup: if we've already persisted a vapi transcript for this
+      // interview, the webhook was retried — acknowledge and exit before
+      // double-inserting or double-triggering the analyzer.
+      const { data: existing } = await admin
+        .from("transcripts")
+        .select("id")
+        .eq("interview_id", interview.id)
+        .eq("source", "vapi")
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ ok: true, deduplicated: true });
+      }
+
       const endedAt = new Date();
       const durationSec = call?.startedAt
         ? Math.max(0, Math.round((endedAt.getTime() - new Date(call.startedAt).getTime()) / 1000))
         : null;
 
+      // Only stamp ended_at / duration / status the first time — first value
+      // wins. `.neq("status", "completed")` short-circuits if a prior retry
+      // already flipped it.
       await admin.from("interviews").update({
         status: "completed",
         ended_at: endedAt.toISOString(),
         duration_sec: durationSec,
-      }).eq("id", interview.id);
+      }).eq("id", interview.id).neq("status", "completed");
 
       const transcript = payload.message?.transcript ?? payload.transcript ?? call?.transcript;
       const segments = payload.message?.messages ?? call?.messages ?? null;
       if (transcript || segments) {
-        await admin.from("transcripts").insert({
+        const { error: tsErr } = await admin.from("transcripts").insert({
           interview_id: interview.id,
           source: "vapi",
           raw_text: typeof transcript === "string" ? transcript : null,
           segments: segments ?? null,
         });
+        if (tsErr) {
+          console.error("[vapi-webhook] transcript insert failed", { interview_id: interview.id, err: tsErr.message });
+          return NextResponse.json({ error: tsErr.message }, { status: 500 });
+        }
 
-        // Fire-and-forget post-call analysis.
+        // Fire-and-forget post-call analysis via a fresh serverless
+        // invocation so we can return the webhook response in <1s.
+        // Errors are logged — a missing summary should be investigable
+        // without tailing Vapi's retry log.
         fetch(`${env().APP_URL}/api/analysis/summarize`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ interview_id: interview.id }),
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error("[vapi-webhook] analyzer dispatch failed", {
+            interview_id: interview.id,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        });
       }
       break;
     }

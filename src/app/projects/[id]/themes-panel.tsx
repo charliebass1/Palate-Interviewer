@@ -58,13 +58,18 @@ export function ThemesPanel({
           {busy ? "Synthesizing..." : initial.length > 0 ? "Re-synthesize" : "Synthesize"}
         </button>
       </div>
+      {!canSynthesize && (
+        <p className="mt-2 text-xs text-neutral-500">
+          Available once you have at least one completed interview summary.
+        </p>
+      )}
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
       {initial.length === 0 ? (
         <p className="mt-3 rounded-md border border-neutral-800 px-4 py-6 text-sm text-neutral-500">
           {canSynthesize
             ? "No themes yet. Click Synthesize to cluster insights across interviews."
-            : "Themes synthesize across 2+ completed interviews."}
+            : "Themes appear once you've completed at least one interview. Works best across 3+."}
         </p>
       ) : (
         <div className="mt-3 space-y-3">

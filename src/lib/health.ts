@@ -22,10 +22,15 @@ export type ReportRow = {
 const REQUIRED_ENV = [
   "ANTHROPIC_API_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "APP_URL",
 ] as const;
+
+// Each tuple: (preferred new name, legacy fallback name). The row is OK
+// if either is set; the detail says which one we picked up.
+const REQUIRED_EITHER_ENV: [string, string][] = [
+  ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+  ["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+];
 
 const OPTIONAL_ENV = [
   "VAPI_API_KEY",
@@ -49,6 +54,25 @@ const CORE_TABLES = [
 function present(name: string): boolean {
   const v = process.env[name];
   return typeof v === "string" && v.length > 0;
+}
+
+function eitherRow(preferred: string, legacy: string): ReportRow {
+  if (present(preferred)) {
+    return { name: preferred, status: "ok", detail: "present (new format)" };
+  }
+  if (present(legacy)) {
+    return {
+      name: preferred,
+      status: "warn",
+      detail: `using legacy ${legacy} — works, but Supabase recommends rotating to the new ${preferred}`,
+    };
+  }
+  return {
+    name: preferred,
+    status: "missing",
+    detail: "not set",
+    remediation: `Set ${preferred} (or legacy ${legacy}) in .env.local from Supabase → Project Settings → API Keys`,
+  };
 }
 
 function envRow(name: string, required: boolean): ReportRow {
@@ -98,20 +122,23 @@ async function checkSupabase(): Promise<ReportRow[]> {
   const name = "Supabase DB";
   const bucketName = "Supabase storage (materials bucket)";
 
-  if (!present("NEXT_PUBLIC_SUPABASE_URL") || !present("SUPABASE_SERVICE_ROLE_KEY")) {
+  const secretKey =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!present("NEXT_PUBLIC_SUPABASE_URL") || !secretKey) {
     return [
       {
         name,
         status: "missing",
-        detail: "URL or service-role key not set",
-        remediation: "Fill NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from Supabase → Project Settings → API",
+        detail: "URL or secret key not set",
+        remediation: "Fill NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY) from Supabase → Project Settings → API Keys",
       },
     ];
   }
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    secretKey,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
@@ -219,6 +246,7 @@ export type HealthReport = {
 export async function healthReport(): Promise<HealthReport> {
   const envRows: ReportRow[] = [
     ...REQUIRED_ENV.map((n) => envRow(n, true)),
+    ...REQUIRED_EITHER_ENV.map(([preferred, legacy]) => eitherRow(preferred, legacy)),
     ...OPTIONAL_ENV.map((n) => envRow(n, false)),
   ];
 

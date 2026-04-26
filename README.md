@@ -55,11 +55,19 @@ cp .env.example .env.local
 
 1. Create a new project at `app.supabase.com`. Pick a region close to
    your Vercel region.
-2. From **Project Settings → API**, copy:
+2. From **Project Settings → API Keys**, copy:
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
-   - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (server-only,
-     never expose this in the browser)
+   - `Publishable key` (`sb_publishable_...`) →
+     `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `Secret key` (`sb_secret_...`) → `SUPABASE_SECRET_KEY`
+     (server-only, never expose this in the browser)
+
+   > Supabase replaced `anon` / `service_role` with `publishable` /
+   > `secret` in late 2025 — new projects only show the new format.
+   > Older projects with un-rotated `anon` / `service_role` JWT keys
+   > still work — paste them under the legacy variable names
+   > (`NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`)
+   > and the env loader will pick them up automatically.
 3. Apply the two migrations. Easiest path:
    ```bash
    npm i -g supabase
@@ -225,9 +233,9 @@ the URL to open in the dashboard.
 | ------------------------------- | -------- | -------------------------------------- |
 | `ANTHROPIC_API_KEY`             | yes      | From console.anthropic.com             |
 | `ANTHROPIC_MODEL`               | no       | Default `claude-haiku-4-5`             |
-| `NEXT_PUBLIC_SUPABASE_URL`      | yes      | Supabase project URL                   |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes      | Supabase anon key                      |
-| `SUPABASE_SERVICE_ROLE_KEY`     | yes      | Server-only; bypasses RLS              |
+| `NEXT_PUBLIC_SUPABASE_URL`              | yes      | Supabase project URL                                                |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`  | yes*     | New `sb_publishable_...` format. Falls back to `NEXT_PUBLIC_SUPABASE_ANON_KEY` for older projects. |
+| `SUPABASE_SECRET_KEY`                   | yes*     | Server-only; bypasses RLS. Falls back to `SUPABASE_SERVICE_ROLE_KEY` for older projects. |
 | `VAPI_API_KEY`                  | yes*     | Required if you want live calls        |
 | `VAPI_WEBHOOK_SECRET`           | yes*     | HMAC-verified on /api/vapi/webhook     |
 | `VAPI_ASSISTANT_ID`             | yes*     | Set after first POST /api/vapi/assistant |

@@ -18,17 +18,20 @@ export function InterviewsPanel({
   projectId,
   guideId,
   initial,
+  mockMode = false,
 }: {
   projectId: string;
   guideId: string | null;
   initial: Interview[];
+  mockMode?: boolean;
 }) {
   const router = useRouter();
   const [expertName, setExpertName] = useState("");
   const [expertRole, setExpertRole] = useState("");
   const [segment, setSegment] = useState("");
   const [phone, setPhone] = useState("");
-  const [dialNow, setDialNow] = useState(false);
+  // In mock mode, default to simulating the call so the demo flows in one click.
+  const [dialNow, setDialNow] = useState(mockMode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,29 +98,43 @@ export function InterviewsPanel({
           <option value="procurement">Procurement</option>
           <option value="category_manager">Category manager</option>
         </select>
-        <input
-          className="rounded bg-neutral-900 px-3 py-2 text-sm outline-none focus:bg-neutral-800 disabled:opacity-50"
-          placeholder="+14155551234 — include country code"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          disabled={!dialNow}
-        />
+        {!mockMode && (
+          <input
+            className="rounded bg-neutral-900 px-3 py-2 text-sm outline-none focus:bg-neutral-800 disabled:opacity-50"
+            placeholder="+14155551234 — include country code"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            disabled={!dialNow}
+          />
+        )}
         <label className="flex items-center gap-2 text-xs text-neutral-400 sm:col-span-2">
           <input
             type="checkbox"
             checked={dialNow}
             onChange={(e) => setDialNow(e.target.checked)}
           />
-          Dial now via Vapi (requires VAPI_ASSISTANT_ID + VAPI_PHONE_NUMBER_ID)
+          {mockMode
+            ? "Simulate the call now & generate a summary (demo — no phone needed)"
+            : "Dial now via Vapi (requires VAPI_ASSISTANT_ID + VAPI_PHONE_NUMBER_ID)"}
         </label>
         <div className="sm:col-span-2 flex items-center justify-between">
           {error && <span className="text-xs text-amber-400">{error}</span>}
           <button
             type="submit"
-            disabled={busy || !expertName.trim() || (dialNow && !phone.trim())}
+            disabled={busy || !expertName.trim() || (dialNow && !phone.trim() && !mockMode)}
             className="ml-auto rounded-md bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {busy ? (dialNow ? "Dialing..." : "Saving...") : dialNow ? "Schedule & dial" : "Schedule"}
+            {busy
+              ? mockMode && dialNow
+                ? "Simulating call..."
+                : dialNow
+                ? "Dialing..."
+                : "Saving..."
+              : mockMode && dialNow
+              ? "Schedule & simulate call"
+              : dialNow
+              ? "Schedule & dial"
+              : "Schedule"}
           </button>
         </div>
       </form>

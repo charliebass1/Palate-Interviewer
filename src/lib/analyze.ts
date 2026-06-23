@@ -4,6 +4,8 @@ import {
   POST_CALL_ANALYZER_SYSTEM,
   buildAnalyzerUserPrompt,
 } from "./prompts/post-call-analyzer";
+import { isMockMode } from "./mock/config";
+import { mockSummaryFor, MOCK_MODEL } from "./mock/llm";
 
 export type SummarizeResult =
   | { ok: true; summaryId: string }
@@ -45,39 +47,48 @@ export async function summarizeInterview(interviewId: string): Promise<Summarize
     guideObjective = guide?.objective ?? null;
   }
 
-  const model = defaultModel();
-  const stream = anthropic().messages.stream({
-    model,
-    max_tokens: 4_000,
-    system: [
-      { type: "text", text: POST_CALL_ANALYZER_SYSTEM, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: buildAnalyzerUserPrompt({
-          transcriptText: text.slice(0, 180_000),
-          guideObjective,
-          expertSegment: interview.expert_segment,
-        }),
-      },
-    ],
-    ...BASE_REQUEST,
-  });
-
-  const final = await stream.finalMessage();
-  const raw = final.content
-    .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-
-  const jsonStart = raw.indexOf("{");
-  const jsonEnd = raw.lastIndexOf("}");
+  const model = isMockMode() ? MOCK_MODEL : defaultModel();
   let out: SummaryJson;
-  try {
-    out = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as SummaryJson;
-  } catch {
-    return { ok: false, status: 502, error: "analyzer JSON parse failed", raw: raw.slice(0, 4000) };
+
+  if (isMockMode()) {
+    // Derive insights + verbatim quotes from the transcript itself.
+    out = mockSummaryFor(text, {
+      guideObjective,
+      expertSegment: interview.expert_segment,
+    }) as SummaryJson;
+  } else {
+    const stream = anthropic().messages.stream({
+      model,
+      max_tokens: 4_000,
+      system: [
+        { type: "text", text: POST_CALL_ANALYZER_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: buildAnalyzerUserPrompt({
+            transcriptText: text.slice(0, 180_000),
+            guideObjective,
+            expertSegment: interview.expert_segment,
+          }),
+        },
+      ],
+      ...BASE_REQUEST,
+    });
+
+    const final = await stream.finalMessage();
+    const raw = final.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    try {
+      out = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as SummaryJson;
+    } catch {
+      return { ok: false, status: 502, error: "analyzer JSON parse failed", raw: raw.slice(0, 4000) };
+    }
   }
 
   const { data: saved, error } = await admin.from("summaries").insert({

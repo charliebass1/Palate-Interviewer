@@ -5,8 +5,45 @@ Upload research materials → Claude generates a tailored 30-min guide →
 Vapi dials the expert and runs an adaptive conversation → transcript,
 quotes, and insights are returned and synthesized across 5–20 calls.
 
-> Prototype status: end-to-end flow is implemented and typechecks
-> clean. No external service is wired up yet — follow the setup below.
+> Prototype status: the end-to-end flow is implemented, typechecks clean,
+> and **runs with zero setup in mock mode** — see the Quick start below.
+> Real services (Supabase / Anthropic / Vapi) drop in later with no code
+> changes.
+
+---
+
+## Quick start (mock mode — no accounts, no keys)
+
+The fastest way to share the prototype with the team. Mock mode swaps in an
+in-memory database, deterministic stand-ins for the Claude calls, and a
+simulated voice-call pipeline, so the whole product is clickable without a
+single credential.
+
+```bash
+npm install
+npm run dev          # no .env file needed
+# open http://localhost:3000  →  you're signed in as a demo user
+```
+
+You land on **/projects** with two seeded projects:
+
+- **Premium Chicken LTO** — fully populated: materials, a generated guide,
+  three completed interviews with transcripts, per-call summaries, and
+  synthesized cross-interview themes. Open it to see the finished product.
+- **Cold-Chain Packaging Study (start here)** — empty, so you can walk the
+  whole flow yourself: upload a `.txt`/`.md` brief → **Generate** the guide →
+  add an interview and tick **“Simulate the call now”** (no phone needed) →
+  watch a transcript + summary appear → **Synthesize** themes.
+
+Everything streams through the real code paths — the guide references your
+uploaded material, the summary quotes your transcript, the themes cite your
+calls — so the demo behaves like the live system. Mutations live in memory and
+reset when the server restarts. A **Demo mode** banner is shown throughout, and
+**/debug** confirms what's mocked.
+
+> Mock mode is on automatically whenever Supabase isn't configured. Force it
+> with `PALATE_MOCK_MODE=true`, or force the live backend with
+> `PALATE_MOCK_MODE=false`. To go live, follow the full setup below.
 
 ---
 
@@ -273,10 +310,40 @@ cookies; the Vapi webhook uses HMAC-SHA256 of the raw body.
 | POST   | `/api/analysis/summarize`     | Claude post-call analysis from a transcript      |
 | POST   | `/api/themes/synthesize`      | Claude cross-interview theme synthesis           |
 | POST   | `/api/dev/test-transcript`    | Dev-only: paste a transcript, run analyzer (gated by `NEXT_PUBLIC_ENABLE_DEV_TOOLS`) |
+| PUT    | `/api/mock/storage`           | Mock-mode only: receives material uploads into the in-memory store |
 | GET    | `/auth/callback`              | Magic-link redirect target                       |
 | POST   | `/auth/sign-out`              | Sign out                                         |
 
 ---
+
+## How mock mode works (for developers)
+
+The design goal was to make the prototype runnable with zero credentials
+**without forking the real code paths** — so wiring up the live backend later
+is a config change, not a rewrite.
+
+Mock mode is gated at three boundaries, all behind `isMockMode()`
+(`src/lib/mock/config.ts`):
+
+1. **Data + auth.** `supabaseServer()` / `supabaseAdmin()` return an in-memory
+   stand-in (`src/lib/mock/supabase.ts`) that implements the exact slice of the
+   Supabase query-builder / auth / storage API the app uses. Every route and
+   page keeps calling `sb.from(...).select()...` unchanged; auth resolves to a
+   fixed demo user, so the middleware and login are bypassed.
+2. **LLM.** `generate-guide.ts`, `analyze.ts`, and `synthesize.ts` branch at
+   the Claude call to deterministic helpers (`src/lib/mock/llm.ts`) that
+   **derive** output from the same inputs the real path reads — the guide from
+   your materials, the summary from your transcript, the themes from your
+   summaries.
+3. **Voice.** Scheduling an interview with “simulate” calls
+   `simulateMockInterview()` (`src/lib/mock/simulate.ts`), which stands in for
+   the whole Vapi call → webhook → transcript → analysis chain.
+
+The store is seeded once per process and persisted on `globalThis`, so it
+survives HMR and is shared across requests in a single running server. It
+assumes one long-lived instance (`next dev` / `next start`); on multi-instance
+serverless, mutations won't be shared across instances (the seed data always
+renders). Flip `PALATE_MOCK_MODE=false` and add real credentials to go live.
 
 ## Known gaps before "demo-ready"
 
@@ -305,14 +372,21 @@ src/
       [id]/                  # per-project page (materials, guide, interviews, summaries, themes)
   lib/
     anthropic.ts             # Claude SDK wrapper + default model
-    env.ts                   # zod-validated env loader
-    supabase/                # server, browser, middleware clients
+    env.ts                   # zod-validated env loader (mock-aware)
+    supabase/                # server, browser, middleware clients (mock-aware)
     vapi.ts                  # Vapi REST wrapper + assistant config builder
     generate-guide.ts        # Claude guide generator (shared by route + smoke)
     analyze.ts               # Claude post-call analyzer (shared by route + smoke)
     synthesize.ts            # Claude theme synthesizer (shared by route + smoke)
     prompts/                 # guide, interviewer, analyzer, theme prompts
-  middleware.ts              # Supabase session refresh
+    mock/                    # zero-credential demo layer (see below)
+      config.ts              #   isMockMode() detection + demo user
+      store.ts               #   in-memory DB, persisted on globalThis, seeded
+      seed.ts                #   builds the two demo projects
+      supabase.ts            #   in-memory stand-in for the Supabase client
+      llm.ts                 #   deterministic guide/summary/themes/transcript
+      simulate.ts            #   simulated Vapi call → transcript → analysis
+  middleware.ts              # Supabase session refresh (skipped in mock mode)
 fixtures/
   sample-brief.txt           # seed research brief for `npm run smoke`
   transcripts.ts             # 3 canned interviews for `npm run smoke`

@@ -9,6 +9,7 @@ import { ThemesPanel } from "./themes-panel";
 import { VoicePanel } from "./voice-panel";
 import { DevTranscriptPanel } from "./dev-transcript-panel";
 import { WorkflowChecklist } from "./workflow-checklist";
+import { isMockMode } from "@/lib/mock/config";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         projectId={project.id}
         guideId={latestGuide?.id ?? null}
         initial={interviews ?? []}
+        mockMode={isMockMode()}
       />
 
       {process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS === "true" && (

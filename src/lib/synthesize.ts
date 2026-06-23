@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "./supabase/server";
 import { anthropic, defaultModel, BASE_REQUEST } from "./anthropic";
 import { THEME_SYNTHESIZER_SYSTEM } from "./prompts/theme-synthesizer";
+import { isMockMode } from "./mock/config";
+import { mockThemesFor, MOCK_MODEL } from "./mock/llm";
 
 export type SynthesizeResult =
   | { ok: true; themes: ThemeRow[] }
@@ -33,47 +35,55 @@ export async function synthesizeThemes(projectId: string): Promise<SynthesizeRes
     sentiment: s.sentiment,
   }));
 
-  const model = defaultModel();
-  const stream = anthropic().messages.stream({
-    model,
-    max_tokens: 6_000,
-    system: [
-      { type: "text", text: THEME_SYNTHESIZER_SYSTEM, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: `Per-interview summaries (JSON):\n${JSON.stringify(packed, null, 2)}\n\nProduce the themes JSON now.`,
-      },
-    ],
-    ...BASE_REQUEST,
-  });
+  const model = isMockMode() ? MOCK_MODEL : defaultModel();
+  let rows: ThemeRow[];
 
-  const final = await stream.finalMessage();
-  const raw = final.content
-    .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
+  if (isMockMode()) {
+    // Cluster the per-interview summaries into themes, pulling supporting
+    // quotes (tagged with interview_id) straight from those summaries.
+    rows = mockThemesFor(packed);
+  } else {
+    const stream = anthropic().messages.stream({
+      model,
+      max_tokens: 6_000,
+      system: [
+        { type: "text", text: THEME_SYNTHESIZER_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `Per-interview summaries (JSON):\n${JSON.stringify(packed, null, 2)}\n\nProduce the themes JSON now.`,
+        },
+      ],
+      ...BASE_REQUEST,
+    });
 
-  const jsonStart = raw.indexOf("{");
-  const jsonEnd = raw.lastIndexOf("}");
-  let out: { themes?: unknown[] };
-  try {
-    out = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
-  } catch {
-    return { ok: false, status: 502, error: "themes JSON parse failed", raw: raw.slice(0, 4000) };
+    const final = await stream.finalMessage();
+    const raw = final.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    let out: { themes?: unknown[] };
+    try {
+      out = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+    } catch {
+      return { ok: false, status: 502, error: "themes JSON parse failed", raw: raw.slice(0, 4000) };
+    }
+    type RawTheme = {
+      title?: string; description?: string; supporting_quotes?: unknown; confidence?: number;
+    };
+    const parsed: RawTheme[] = Array.isArray(out.themes) ? (out.themes as RawTheme[]) : [];
+
+    rows = parsed.map((t) => ({
+      title: t.title ?? "Untitled theme",
+      description: t.description ?? null,
+      supporting_quotes: t.supporting_quotes ?? [],
+      confidence: t.confidence ?? null,
+    }));
   }
-  type RawTheme = {
-    title?: string; description?: string; supporting_quotes?: unknown; confidence?: number;
-  };
-  const parsed: RawTheme[] = Array.isArray(out.themes) ? (out.themes as RawTheme[]) : [];
-
-  const rows: ThemeRow[] = parsed.map((t) => ({
-    title: t.title ?? "Untitled theme",
-    description: t.description ?? null,
-    supporting_quotes: t.supporting_quotes ?? [],
-    confidence: t.confidence ?? null,
-  }));
 
   await admin.from("themes").delete().eq("project_id", projectId);
   if (rows.length) {

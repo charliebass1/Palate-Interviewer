@@ -3,6 +3,8 @@ import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 import { createOutboundCall } from "@/lib/vapi";
+import { isMockMode } from "@/lib/mock/config";
+import { simulateMockInterview } from "@/lib/mock/simulate";
 
 const Create = z.object({
   project_id: z.string().uuid(),
@@ -48,6 +50,18 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mock mode: simulate the whole call → transcript → analysis chain inline,
+  // no phone number or Vapi required.
+  if (isMockMode() && dial_now) {
+    await simulateMockInterview(interview.id);
+    const { data: completed } = await sb
+      .from("interviews")
+      .select("*")
+      .eq("id", interview.id)
+      .single();
+    return NextResponse.json({ interview: completed ?? interview, simulated: true }, { status: 201 });
+  }
 
   if (dial_now && expert_phone) {
     const { VAPI_API_KEY, VAPI_ASSISTANT_ID, VAPI_PHONE_NUMBER_ID } = env();

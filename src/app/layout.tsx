@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { isMockMode } from "@/lib/mock/config";
+import { DemoBanner } from "./demo-banner";
 
 export const metadata: Metadata = {
   title: "Palate — Autonomous Foodservice Expert Interviewer",
@@ -10,7 +12,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {isMockMode() && <DemoBanner />}
+        {children}
+      </body>
     </html>
   );
 }

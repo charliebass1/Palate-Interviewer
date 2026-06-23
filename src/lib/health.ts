@@ -9,6 +9,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { listVoices } from "./elevenlabs";
+import { isMockMode } from "./mock/config";
 
 export type RowStatus = "ok" | "warn" | "error" | "missing";
 
@@ -244,6 +245,28 @@ export type HealthReport = {
 };
 
 export async function healthReport(): Promise<HealthReport> {
+  // Mock mode runs with no real backend, so skip the live reachability probes
+  // (they'd fail on placeholder keys) and report the demo wiring instead.
+  if (isMockMode()) {
+    return {
+      overall: "warn",
+      rows: [
+        {
+          name: "Mock mode",
+          status: "warn",
+          detail:
+            "Active — the app is running on an in-memory store, deterministic mock LLM output, and simulated calls. No external services are used.",
+          remediation:
+            "To switch to the live backend, set Supabase + Anthropic (+ optional Vapi) vars in .env.local, or set PALATE_MOCK_MODE=false.",
+        },
+        { name: "In-memory database", status: "ok", detail: "seeded — 2 demo projects ready" },
+        { name: "Mock LLM (guide / analysis / synthesis)", status: "ok", detail: "deterministic, derived from inputs" },
+        { name: "Simulated call pipeline", status: "ok", detail: "scheduling an interview generates a transcript + summary" },
+        { name: "Auth", status: "ok", detail: `bypassed — signed in as demo user` },
+      ],
+    };
+  }
+
   const envRows: ReportRow[] = [
     ...REQUIRED_ENV.map((n) => envRow(n, true)),
     ...REQUIRED_EITHER_ENV.map(([preferred, legacy]) => eitherRow(preferred, legacy)),

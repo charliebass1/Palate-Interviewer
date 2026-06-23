@@ -4,6 +4,8 @@ import {
   GUIDE_GENERATOR_SYSTEM,
   buildGuideUserPrompt,
 } from "./prompts/guide-generator";
+import { isMockMode } from "./mock/config";
+import { mockGuideFor, MOCK_MODEL } from "./mock/llm";
 
 export type GenerateGuideResult =
   | { ok: true; guideId: string; guideJson: object }
@@ -40,44 +42,50 @@ export async function generateGuide(projectId: string): Promise<GenerateGuideRes
     };
   }
 
-  const model = defaultModel();
-  const stream = anthropic().messages.stream({
-    model,
-    max_tokens: 8_000,
-    system: [
-      { type: "text", text: GUIDE_GENERATOR_SYSTEM, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: buildGuideUserPrompt({
-          projectName: project.name,
-          topic: project.topic,
-          materialsExcerpt: excerpt,
-        }),
-      },
-    ],
-    ...BASE_REQUEST,
-  });
-
-  const final = await stream.finalMessage();
-  const text = final.content
-    .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-
+  const model = isMockMode() ? MOCK_MODEL : defaultModel();
   let guideJson: unknown;
-  try {
-    const jsonStart = text.indexOf("{");
-    const jsonEnd = text.lastIndexOf("}");
-    guideJson = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
-  } catch {
-    return {
-      ok: false,
-      status: 502,
-      error: "Guide response was not valid JSON",
-      raw: text.slice(0, 4000),
-    };
+
+  if (isMockMode()) {
+    // Derive a structured guide from the project topic + parsed materials.
+    guideJson = mockGuideFor(project, materials ?? []);
+  } else {
+    const stream = anthropic().messages.stream({
+      model,
+      max_tokens: 8_000,
+      system: [
+        { type: "text", text: GUIDE_GENERATOR_SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: buildGuideUserPrompt({
+            projectName: project.name,
+            topic: project.topic,
+            materialsExcerpt: excerpt,
+          }),
+        },
+      ],
+      ...BASE_REQUEST,
+    });
+
+    const final = await stream.finalMessage();
+    const text = final.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+
+    try {
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}");
+      guideJson = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+    } catch {
+      return {
+        ok: false,
+        status: 502,
+        error: "Guide response was not valid JSON",
+        raw: text.slice(0, 4000),
+      };
+    }
   }
 
   const g = guideJson as { objective?: string; persona_target?: string };

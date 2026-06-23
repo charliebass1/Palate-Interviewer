@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isMockMode } from "./mock/config";
 
 const schema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1),
@@ -43,16 +44,27 @@ let cached: Env | null = null;
 export function env(): Env {
   if (cached) return cached;
 
+  // In mock mode the app runs with no real backend, so fill the required
+  // fields with harmless placeholders — nothing ever calls out with them.
+  const mock = isMockMode();
+  const fallback = (real: string | undefined, placeholder: string) =>
+    real || (mock ? placeholder : undefined);
+
   // Accept both new (publishable / secret) and legacy (anon /
   // service_role) variable names. Prefer new if both are set.
   const normalized = {
     ...process.env,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    ANTHROPIC_API_KEY: fallback(process.env.ANTHROPIC_API_KEY, "sk-ant-mock"),
+    NEXT_PUBLIC_SUPABASE_URL: fallback(process.env.NEXT_PUBLIC_SUPABASE_URL, "http://localhost:54321"),
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: fallback(
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SECRET_KEY:
-      process.env.SUPABASE_SECRET_KEY ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      "sb_publishable_mock",
+    ),
+    SUPABASE_SECRET_KEY: fallback(
+      process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY,
+      "sb_secret_mock",
+    ),
   };
 
   const parsed = schema.safeParse(normalized);

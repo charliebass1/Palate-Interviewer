@@ -1,11 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { isMockMode } from "@/lib/mock/config";
 
 type CookieChunk = { name: string; value: string; options?: CookieOptions };
 
 // Refreshes Supabase auth cookies on every request so server components can
 // rely on a live session. Called from src/middleware.ts.
 export async function updateSession(request: NextRequest) {
+  // Mock mode has no real session to refresh — skip straight through.
+  if (isMockMode()) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
